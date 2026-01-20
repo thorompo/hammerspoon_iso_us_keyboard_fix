@@ -1,3 +1,4 @@
+-- Hit 0 to 0, Hit Fn+0 to í, Hit Shift+0 to Í
 local eventtap = hs.eventtap
 local eventTypes = hs.eventtap.event.types
 
@@ -10,7 +11,6 @@ local alt_code = 58
 
 -- The watcher monitors: keyDown, keyUp, keyRepeat, and flagsChanged
 YZSwapper.watcher = eventtap.new({eventTypes.keyDown, eventTypes.keyUp, eventTypes.keyRepeat, eventTypes.flagsChanged}, function(event)
-    local isCitrix = isIgnoredAppActive()
     local keyCode = event:getKeyCode()
     local flags = event:getFlags()
     local type = event:getType()
@@ -50,3 +50,23 @@ YZSwapper.watcher = eventtap.new({eventTypes.keyDown, eventTypes.keyUp, eventTyp
     
     return false
 end)
+-- Create a menu switch
+YZSwapper.menubar = hs.menubar.new()
+function YZSwapper.updateMenu()
+    local status = YZSwapper.watcher:isEnabled() and "ACTIVE" or "DISABLED"
+    YZSwapper.menubar:setTitle(status)
+end
+
+YZSwapper.menubar:setClickCallback(function()
+    if YZSwapper.watcher:isEnabled() then 
+        YZSwapper.watcher:stop() 
+    else 
+        YZSwapper.watcher:start() 
+    end
+    YZSwapper.updateMenu()
+end)
+
+-- Start the script
+YZSwapper.watcher:start()
+YZSwapper.updateMenu()
+hs.alert.show("Keyboard script is loaded")
