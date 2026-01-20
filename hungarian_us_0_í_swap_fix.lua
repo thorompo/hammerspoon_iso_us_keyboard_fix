@@ -15,16 +15,6 @@ YZSwapper.watcher = eventtap.new({eventTypes.keyDown, eventTypes.keyUp, eventTyp
     local flags = event:getFlags()
     local type = event:getType()
     local char = event:getCharacters()
-
-    -- --- CITRIX LOGIC (Swap Cmd/Alt) ---
-    if isCitrix then
-        if flags.cmd and keyCode == tab_code then return true end
-        if keyCode == cmd_code then event:setKeyCode(alt_code)
-        elseif keyCode == alt_code then event:setKeyCode(cmd_code) end
-        return false
-    end
-
-    -- --- NORMAL MAC LOGIC ---
     
     -- 1. Swap Y and Z keys
     -- We swap the keycode for all event types (down/up) to prevent "stuck" keys.
