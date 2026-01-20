@@ -10,7 +10,7 @@ local ignoredApps = {
 
 local function isIgnoredAppActive()
     local app = hs.application.frontmostApplication()
-    return app and (ignoredApps[app:name()] or ignoredApps[app:title()])
+    return app and ignoredApps[app:name()]
 end
 
 -- ============================================================
@@ -33,7 +33,7 @@ end)
 quitModal:bind('', 'escape', function() quitModal:exit() end)
 
 -- ============================================================
--- 3. PART: Main Event Handler (Y/Z swap, í/0 logic, and Cmd+Tab blocking)
+-- 3. PART: Main Event Handler
 -- ============================================================
 local eventtap = hs.eventtap
 local eventTypes = hs.eventtap.event.types
@@ -42,22 +42,39 @@ YZSwapper = {}
 local y_code = 16
 local z_code = 6
 local tab_code = 48
+local cmd_code = 55 
+local alt_code = 58 
 
 YZSwapper.watcher = eventtap.new({eventTypes.keyDown, eventTypes.keyUp, eventTypes.keyRepeat, eventTypes.flagsChanged}, function(event)
+    local isCitrix = isIgnoredAppActive()
     local keyCode = event:getKeyCode()
     local flags = event:getFlags()
     local type = event:getType()
     local char = event:getCharacters()
-    
-    -- A. BLOCK CMD+TAB FOR CITRIX
-    -- If Cmd is held and Tab is pressed while in an ignored app, stop the event.
-    if keyCode == tab_code and flags.cmd then
-        if isIgnoredAppActive() then
-            return true -- "Eat" the event so macOS doesn't see it
+
+    -- ------------------------------------------------------------
+    -- A: CITRIX LOGIC (Only runs when Citrix is active)
+    -- ------------------------------------------------------------
+    if isCitrix then
+        -- Allow Cmd+Tab to work normally
+        if flags.cmd and keyCode == tab_code then return true end
+        
+        -- Swap Cmd and Alt for Windows shortcuts
+        if keyCode == cmd_code then 
+            event:setKeyCode(alt_code)
+        elseif keyCode == alt_code then 
+            event:setKeyCode(cmd_code) 
         end
+        
+        -- EXIT HERE: Do not process Y/Z or í logic if in Citrix
+        return false 
     end
 
-    -- B. SWAP Y AND Z KEYS
+    -- ------------------------------------------------------------
+    -- B: NORMAL MAC LOGIC (Only runs when NOT in Citrix)
+    -- ------------------------------------------------------------
+    
+    -- 1. Swap Y and Z keys (All event types to prevent sticking)
     if keyCode == y_code then
         event:setKeyCode(z_code)
         return false
@@ -66,11 +83,20 @@ YZSwapper.watcher = eventtap.new({eventTypes.keyDown, eventTypes.keyUp, eventTyp
         return false
     end
 
-    -- C. CHARACTER REPLACEMENT LOGIC (í/Í key)
+    -- 2. CHARACTER REPLACEMENT LOGIC (í/Í key)
     if type == eventTypes.keyDown or type == eventTypes.keyRepeat then
         if char == "í" or char == "Í" then
-            if flags.fn then return false end
-            if char == "Í" then return false end
+            -- If Fn is pressed, keep original í/Í
+            if flags.fn then
+                return false 
+            end
+
+            -- If Shift+í (Capital Í), keep original Í
+            if char == "Í" then
+                return false
+            end
+
+            -- If lowercase í, replace with 0
             if char == "í" then
                 hs.eventtap.keyStrokes("0")
                 return true
@@ -82,7 +108,7 @@ YZSwapper.watcher = eventtap.new({eventTypes.keyDown, eventTypes.keyUp, eventTyp
 end)
 
 -- ============================================================
--- 4. PART: Menubar Initialization and Control
+-- 4. PART: Menubar Initialization
 -- ============================================================
 YZSwapper.menubar = hs.menubar.new()
 function YZSwapper.updateMenu()
@@ -99,7 +125,6 @@ YZSwapper.menubar:setClickCallback(function()
     YZSwapper.updateMenu()
 end)
 
--- Start the script
 YZSwapper.watcher:start()
 YZSwapper.updateMenu()
-hs.alert.show("Keyboard script is loaded")
+hs.alert.show("Keyboard Fixes Loaded")
